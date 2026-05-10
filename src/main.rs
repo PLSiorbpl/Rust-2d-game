@@ -6,6 +6,7 @@ use std::sync::Arc;
 use log::error;
 use wgpu::{Backends, Instance, InstanceDescriptor};
 use winit::application::ApplicationHandler;
+use winit::error::EventLoopError;
 use winit::event::{KeyEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::KeyCode::Escape;
@@ -75,7 +76,7 @@ impl ApplicationHandler for App {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), EventLoopError> {
     pretty_env_logger::init();
 
     let event_loop = EventLoop::new()?;
