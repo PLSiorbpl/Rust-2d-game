@@ -23,7 +23,7 @@ pub struct WindowConfiguration {
 
 pub struct Window {
     pub(super) surface: Surface<'static>,
-    surface_config: OnceCell<SurfaceConfiguration>,
+    surface_config: Option<SurfaceConfiguration>,
     window_config: WindowConfiguration,
     pub(super) window: Arc<winit::window::Window>,
 }
@@ -52,7 +52,7 @@ impl Window {
         Ok(
             Self {
                 surface,
-                surface_config: OnceCell::new(),
+                surface_config: None,
                 window_config,
                 window
             }
@@ -60,7 +60,7 @@ impl Window {
     }
 
     pub(super) fn configure(&mut self, renderer: &Renderer) {
-        if self.surface_config.get().is_none() {
+        if self.surface_config.is_none() {
             let surface_caps = self.surface.get_capabilities(&renderer.adapter);
             let surface_format = surface_caps
                 .formats
@@ -80,16 +80,10 @@ impl Window {
                 view_formats: vec![],
             };
 
-            self.surface_config.set(config).unwrap_or_else(|err| {
-                warn!(
-                    "Failed to set surface config, retrying next frame. {:?}",
-                    err
-                );
-            });
+            self.surface_config = Some(config);
         }
 
-        self.surface
-            .configure(&renderer.device, self.surface_config.get().unwrap());
+        self.surface.configure(&renderer.device, self.surface_config.as_ref().unwrap());
     }
 
     pub fn resize(&mut self, renderer: &Renderer, width: u32, height: u32) {
@@ -110,7 +104,6 @@ impl Window {
             CurrentSurfaceTexture::Success(st) => st,
             CurrentSurfaceTexture::Suboptimal(st) => {
                 warn!("Suboptimal surface texture!");
-                self.configure(renderer);
                 st
             }
             CurrentSurfaceTexture::Timeout

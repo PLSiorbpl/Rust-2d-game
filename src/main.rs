@@ -53,9 +53,7 @@ impl ApplicationHandler for App {
             abort();
         });
 
-        let renderer = pollster::block_on(Renderer::new(&instance, Some(&window)));
-
-        window.resize(&renderer, 0, 0);
+        let renderer = pollster::block_on(Renderer::new(&instance, Some(&window))); 
 
         self.state = Some(State {
             window,
@@ -72,7 +70,7 @@ impl ApplicationHandler for App {
             } => {
                 match event {
                     KeyEvent { physical_key, .. } => {
-                        if (physical_key == Escape) {
+                        if physical_key == Escape {
                             event_loop.exit();
                         }
                     }
