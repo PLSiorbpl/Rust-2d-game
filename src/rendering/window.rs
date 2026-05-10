@@ -100,6 +100,10 @@ impl Window {
         }
     }
 
+    pub fn request_redraw(&self) {
+        self.window.request_redraw();
+    }
+
     pub fn acquire_render_target(&mut self, renderer: &Renderer) -> Option<RenderTarget> {
         let current_surface_texture = self.surface.get_current_texture();
         let surface_texture = match current_surface_texture {

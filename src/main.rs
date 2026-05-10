@@ -24,6 +24,16 @@ pub struct App {
     state: Option<State>,
 }
 
+impl App {
+    pub fn render(window: &mut Window, renderer: &mut Renderer) {
+        let Some(render_target) = window.acquire_render_target(&renderer) else {
+            return;
+        };
+
+        // do render stuff fr
+    }
+}
+
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let instance = Instance::new(InstanceDescriptor {
@@ -70,6 +80,10 @@ impl ApplicationHandler for App {
             },
             WindowEvent::Resized(size) => {
                 state.window.resize(&state.renderer, size.width, size.height);
+            },
+            WindowEvent::RedrawRequested => {
+                App::render(&mut state.window, &mut state.renderer);
+                state.window.request_redraw();
             },
             _ => {}
         }
