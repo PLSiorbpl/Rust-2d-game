@@ -1,5 +1,6 @@
 pub mod rendering;
 
+use std::ops::Deref;
 use std::process::abort;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -11,6 +12,7 @@ use winit::event::{KeyEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::KeyCode::Escape;
 use winit::window::WindowId;
+use crate::rendering::{render_target, renderer};
 use crate::rendering::renderer::Renderer;
 use crate::rendering::window::{Window, WindowConfiguration};
 
@@ -26,11 +28,13 @@ pub struct App {
 
 impl App {
     pub fn render(window: &mut Window, renderer: &mut Renderer) {
+        Renderer::clear_screen(renderer, window);
+        return;
         let Some(render_target) = window.acquire_render_target(&renderer) else {
             return;
         };
 
-        // do render stuff fr
+
     }
 }
 
@@ -53,7 +57,7 @@ impl ApplicationHandler for App {
             abort();
         });
 
-        let renderer = pollster::block_on(Renderer::new(&instance, Some(&window))); 
+        let renderer = pollster::block_on(Renderer::new(&instance, Some(&window)));
 
         self.state = Some(State {
             window,
