@@ -29,12 +29,8 @@ pub struct App {
 impl App {
     pub fn render(window: &mut Window, renderer: &mut Renderer) {
         Renderer::clear_screen(renderer, window);
+        Renderer::render_triangle(renderer, window);
         return;
-        let Some(render_target) = window.acquire_render_target(&renderer) else {
-            return;
-        };
-
-
     }
 }
 

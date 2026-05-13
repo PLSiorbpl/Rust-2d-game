@@ -23,7 +23,7 @@ pub struct WindowConfiguration {
 
 pub struct Window {
     pub(super) surface: Surface<'static>,
-    surface_config: Option<SurfaceConfiguration>,
+    pub(crate) surface_config: Option<SurfaceConfiguration>,
     window_config: WindowConfiguration,
     pub(super) window: Arc<winit::window::Window>,
 }
