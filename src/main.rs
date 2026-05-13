@@ -28,9 +28,14 @@ pub struct App {
 
 impl App {
     pub fn render(window: &mut Window, renderer: &mut Renderer) {
-        Renderer::clear_screen(renderer, window);
-        Renderer::render_triangle(renderer, window);
-        return;
+        let Some(render_target) = window.acquire_render_target(renderer) else {
+            return;
+        };
+
+        let mut encoder = renderer.start_frame();
+        renderer.clear_screen(&render_target, &mut encoder);
+        renderer.render_triangle(&render_target, &mut encoder);
+        renderer.end_frame(render_target, encoder);
     }
 }
 
@@ -53,7 +58,7 @@ impl ApplicationHandler for App {
             abort();
         });
 
-        let renderer = pollster::block_on(Renderer::new(&instance, Some(&window)));
+        let renderer = pollster::block_on(Renderer::new(&instance, &mut window));
 
         self.state = Some(State {
             window,
@@ -75,6 +80,9 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
+            },
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
             },
             WindowEvent::Resized(size) => {
                 state.window.resize(&state.renderer, size.width, size.height);

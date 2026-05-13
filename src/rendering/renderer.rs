@@ -1,10 +1,8 @@
 use crate::rendering::window::Window;
 use log::error;
 use std::process::abort;
-use wgpu::{
-    Adapter, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, Limits,
-    MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Trace,
-};
+use wgpu::{Adapter, CommandEncoder, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, Limits, MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Trace};
+use crate::rendering::render_target::RenderTarget;
 
 pub struct Renderer {
     pub(super) device: Device,
@@ -14,12 +12,12 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub async fn new(instance: &Instance, window: Option<&Window>) -> Self {
+    pub async fn new(instance: &Instance, window: &mut Window) -> Self {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 power_preference: PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
-                compatible_surface: window.map(|e| &e.surface),
+                compatible_surface: Some(&window.surface),
             })
             .await
             .unwrap_or_else(|err| {
@@ -41,6 +39,8 @@ impl Renderer {
                 error!("Failed to fetch a device and queue!: {:?}", err);
                 abort()
             });
+
+        window.configure_internal(&adapter, &device);
 
         // TODO understand this shit
 
@@ -69,7 +69,7 @@ impl Renderer {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState { // 4.
-                    format: window.as_ref().unwrap().surface_config.as_ref().unwrap().format,
+                    format: window.surface_config.as_ref().unwrap().format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -105,76 +105,64 @@ impl Renderer {
         }
     }
 
-    pub(crate) fn clear_screen(&mut self, windows: &mut Window) {
-        let Some(render_target) = windows.acquire_render_target(&self) else { return; };
-
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+    pub fn start_frame(&self) -> CommandEncoder {
+        self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
-        });
+        })
+    }
 
-        {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &render_target.view(),
-                    resolve_target: None,
-                    depth_slice: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.3,
-                            g: 0.9,
-                            b: 0.1,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-                multiview_mask: None,
-            });
-        }
-
+    pub fn end_frame(&self, render_target: RenderTarget, encoder: CommandEncoder) {
         self.queue.submit(std::iter::once(encoder.finish()));
         render_target.present();
     }
 
-    pub(crate) fn render_triangle(&mut self, windows: &mut Window) {
-        let Some(render_target) = windows.acquire_render_target(&self) else { return; };
-
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
+    pub fn clear_screen(&mut self, render_target: &RenderTarget, encoder: &mut CommandEncoder) {
+        let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &render_target.view(),
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.3,
+                        g: 0.9,
+                        b: 0.1,
+                        a: 1.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+            multiview_mask: None,
         });
+    }
 
-        {
-            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &render_target.view(),
-                    resolve_target: None,
-                    depth_slice: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 1.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-                multiview_mask: None,
-            });
-
-            _render_pass.set_pipeline(&self.render_pipeline);
-            _render_pass.draw(0..3, 0..1);
-        }
-
-        self.queue.submit(std::iter::once(encoder.finish()));
-        render_target.present();
+    pub fn render_triangle(&mut self, render_target: &RenderTarget, encoder: &mut CommandEncoder) {
+        let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &render_target.view(),
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 1.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 1.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            occlusion_query_set: None,
+            timestamp_writes: None,
+            multiview_mask: None,
+        });
+        _render_pass.set_pipeline(&self.render_pipeline);
+        _render_pass.draw(0..3, 0..1);
     }
 }

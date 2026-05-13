@@ -6,10 +6,7 @@ use std::process::abort;
 use std::sync::Arc;
 use thiserror::Error;
 use wgpu::wgt::TextureViewDescriptor;
-use wgpu::{
-    CompositeAlphaMode, CreateSurfaceError, CurrentSurfaceTexture, Instance, PresentMode, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages,
-};
+use wgpu::{Adapter, CompositeAlphaMode, CreateSurfaceError, CurrentSurfaceTexture, Device, Instance, PresentMode, Surface, SurfaceConfiguration, TextureFormat, TextureUsages};
 use winit::dpi::{PhysicalSize, Size};
 use winit::error::OsError;
 use winit::event_loop::ActiveEventLoop;
@@ -59,9 +56,9 @@ impl Window {
         )
     }
 
-    pub(super) fn configure(&mut self, renderer: &Renderer) {
+    pub(super) fn configure_internal(&mut self, adapter: &Adapter, device: &Device) {
         if self.surface_config.is_none() {
-            let surface_caps = self.surface.get_capabilities(&renderer.adapter);
+            let surface_caps = self.surface.get_capabilities(adapter);
             let surface_format = surface_caps
                 .formats
                 .iter()
@@ -83,7 +80,11 @@ impl Window {
             self.surface_config = Some(config);
         }
 
-        self.surface.configure(&renderer.device, self.surface_config.as_ref().unwrap());
+        self.surface.configure(device, self.surface_config.as_ref().unwrap());
+    }
+
+    pub(super) fn configure(&mut self, renderer: &Renderer) {
+        self.configure_internal(&renderer.adapter, &renderer.device);
     }
 
     pub fn resize(&mut self, renderer: &Renderer, width: u32, height: u32) {
