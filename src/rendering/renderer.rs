@@ -11,7 +11,8 @@ pub struct Renderer {
     pub(super) queue: Queue,
     pub(super) render_pipeline: wgpu::RenderPipeline,
     pub(super) vertex_buffer: wgpu::Buffer,
-    pub(super) num_vertices: u32,
+    pub(super) index_buffer: wgpu::Buffer,
+    pub(super) num_indices: u32,
 }
 
 #[repr(C)]
@@ -22,9 +23,34 @@ struct Vertex {
 }
 
 const VERTICES: &[Vertex] = &[
-    Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-    Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
-    Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
+    // Eye right
+    Vertex { position: [0.7, 0.9, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [0.7, 0.7, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [0.9, 0.9, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [0.9, 0.7, 0.0], color: [1.0, 1.0, 1.0] },
+
+    // Eye left
+    Vertex { position: [-0.7, 0.7, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [-0.7, 0.9, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [-0.9, 0.7, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [-0.9, 0.9, 0.0], color: [1.0, 1.0, 1.0] },
+
+    // Mouth
+    Vertex { position: [0.6, -0.7, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [-0.6, -0.7, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [-0.6, -0.8, 0.0], color: [1.0, 1.0, 1.0] },
+    Vertex { position: [0.6, -0.8, 0.0], color: [1.0, 1.0, 1.0] },
+];
+
+const INDICES: &[u16] = &[
+    0, 1, 2,
+    2, 1, 3,
+
+    4, 5, 6,
+    6, 5, 7,
+
+    8, 9, 10,
+    8, 10, 11,
 ];
 
 impl Renderer {
@@ -121,7 +147,14 @@ impl Renderer {
             }
         );
 
-        let num_vertices = VERTICES.len() as u32;
+        let index_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(INDICES),
+                usage: wgpu::BufferUsages::INDEX,
+            }
+        );
+        let num_indices = INDICES.len() as u32;
 
         Self {
             device,
@@ -129,7 +162,8 @@ impl Renderer {
             queue,
             render_pipeline,
             vertex_buffer,
-            num_vertices,
+            index_buffer,
+            num_indices,
         }
     }
 
@@ -193,7 +227,8 @@ impl Renderer {
 
         _render_pass.set_pipeline(&self.render_pipeline);
         _render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        _render_pass.draw(0..self.num_vertices, 0..1);
+        _render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        _render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
 }
 
