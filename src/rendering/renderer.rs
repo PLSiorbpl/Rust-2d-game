@@ -2,6 +2,7 @@ use crate::rendering::window::Window;
 use log::error;
 use std::process::abort;
 use wgpu::{Adapter, CommandEncoder, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, Limits, MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Trace};
+use wgpu::util::DeviceExt;
 use crate::rendering::render_target::RenderTarget;
 
 pub struct Renderer {
@@ -9,7 +10,22 @@ pub struct Renderer {
     pub(super) adapter: Adapter,
     pub(super) queue: Queue,
     pub(super) render_pipeline: wgpu::RenderPipeline,
+    pub(super) vertex_buffer: wgpu::Buffer,
+    pub(super) num_vertices: u32,
 }
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+const VERTICES: &[Vertex] = &[
+    Vertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+    Vertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
+];
 
 impl Renderer {
     pub async fn new(instance: &Instance, window: &mut Window) -> Self {
@@ -61,14 +77,14 @@ impl Renderer {
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: Some("vs_main"), // 1.
-                buffers: &[], // 2.
+                entry_point: Some("vs_main"),
+                buffers: &[Vertex::desc()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
-            fragment: Some(wgpu::FragmentState { // 3.
+            fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState { // 4.
+                targets: &[Some(wgpu::ColorTargetState {
                     format: window.surface_config.as_ref().unwrap().format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
@@ -76,9 +92,9 @@ impl Renderer {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList, // 1.
+                topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw, // 2.
+                front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
@@ -97,11 +113,23 @@ impl Renderer {
             cache: None, // 6.
         });
 
+        let vertex_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(VERTICES),
+                usage: wgpu::BufferUsages::VERTEX,
+            }
+        );
+
+        let num_vertices = VERTICES.len() as u32;
+
         Self {
             device,
             adapter,
             queue,
             render_pipeline,
+            vertex_buffer,
+            num_vertices,
         }
     }
 
@@ -162,7 +190,24 @@ impl Renderer {
             timestamp_writes: None,
             multiview_mask: None,
         });
+
         _render_pass.set_pipeline(&self.render_pipeline);
-        _render_pass.draw(0..3, 0..1);
+        _render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        _render_pass.draw(0..self.num_vertices, 0..1);
+    }
+}
+
+impl Vertex {
+    const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+
+    fn desc() -> wgpu::VertexBufferLayout<'static> {
+        use std::mem;
+
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBS,
+        }
     }
 }
